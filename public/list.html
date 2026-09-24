@@ -30,7 +30,6 @@
     table {
       width: 100%;
       table-layout: fixed;
-      /* Forces columns to stay within width */
       word-wrap: normal;
       border-collapse: collapse;
     }
@@ -75,27 +74,12 @@
       margin: 0 0px;
     }
 
-    .button-edit {
+    .button-edit, .button-excel, .button-delete {
       background-color: #ffffff;
+      color: #333; /* Default text color for better contrast */
     }
 
-    .button-edit:hover {
-      background-color: #acacac;
-    }
-
-    .button-excel {
-      background-color: #ffffff;
-    }
-
-    .button-excel:hover {
-      background-color: #acacac;
-    }
-
-    .button-delete {
-      background-color: #ffffff;
-    }
-
-    .button-delete:hover {
+    .button-edit:hover, .button-excel:hover, .button-delete:hover {
       background-color: #acacac;
     }
 
@@ -117,6 +101,24 @@
     .top-buttons a:hover {
       background-color: #0056b3;
     }
+
+    /* Error Message Styling */
+    .error-message {
+      text-align: center;
+      padding: 20px;
+      color: red;
+      font-weight: bold;
+      border: 1px solid red;
+      background-color: #fff5f5;
+      margin-top: 20px;
+    }
+
+    /* Loading Spinner */
+    .loader {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
   </style>
 </head>
 
@@ -133,19 +135,25 @@
 
     <div id="counter" style="margin: 10px 0; font-weight: bold;">Εγγραφές: 0
     </div>
+    
+    <!-- Error Message Container -->
+    <div id="error-container" class="error-message" style="display:none;"></div>
+
+    <!-- Loading Spinner (Optional) -->
+    <div id="loader" class="loader" style="display:none;">Φόρτωση...</div>
 
     <table id="recordsTable">
       <colgroup>
-        <col style="width: 5%;"> <!-- a/a -->
-        <col style="width: 5%;"> <!-- AA eadeies -->
-        <col style="width: 6%;"> <!-- HMNIA -->
-        <col style="width: 20%;"> <!-- Eidos -->
-        <col style="width: 20%;"> <!-- Dhmos -->
-        <col style="width: 20%;"> <!-- odos -->
-        <col style="width: 5%;"> <!-- aks 1ou -->
-        <col style="width: 5%;"> <!-- aks 2ou -->
-        <col style="width: 5%;"> <!-- aks 3ou -->
-        <col style="width: 10%;"> <!-- Actions -->
+        <col style="width: 5%;"> 
+        <col style="width: 5%;"> 
+        <col style="width: 6%;"> 
+        <col style="width: 20%;"> 
+        <col style="width: 20%;"> 
+        <col style="width: 20%;"> 
+        <col style="width: 5%;"> 
+        <col style="width: 5%;"> 
+        <col style="width: 5%;"> 
+        <col style="width: 10%;"> 
       </colgroup>
       <thead>
         <tr>
@@ -180,38 +188,107 @@
   </div>
 
   <script>
+    // --- SECURITY FIX: HTML Escaping Utility ---
+    function escapeHtml(text) {
+      if (text === null || text === undefined) return "";
+      const div = document.createElement("div");
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // --- PERFORMANCE FIX: Debounce Function ---
+    // Prevents applyFilters from running on every single keystroke
+    let debounceTimeout;
+    const DEBOUNCE_DELAY = 300; // Wait 300ms after user stops typing
+
+    // --- APPLICATION LOGIC STARTS HERE ---
+
+    const filterInputs = document.querySelectorAll('.filters input');
+
+    // 1. Restore Filters on Page Load (Before Loading Data)
+    function restoreFilters() {
+      if (!filterInputs.length) return;
+      
+      filterInputs.forEach((input, index) => {
+        const saved = sessionStorage.getItem(`filter_${index}`);
+        if (saved !== null) {
+          input.value = saved;
+        }
+      });
+    }
+
+    // 2. Load Records (With Error Handling)
     async function loadRecords() {
       const tbody = document.querySelector('#recordsTable tbody');
+      const counterEl = document.getElementById('counter');
+      const loaderEl = document.getElementById('loader');
+      
+      // Reset Table and UI states
+      if(tbody) tbody.innerHTML = ""; 
+      if(loaderEl) loaderEl.style.display = 'block';
+      if(counterEl) counterEl.textContent = "Εγγραφές: Φορτίζονται...";
 
-      const res = await fetch('/api/axiologiseis');
-      const records = await res.json();
+      try {
+        const res = await fetch('/api/axiologiseis');
 
-      updateCounter(records.length);
+        if (!res.ok) {
+            throw new Error(`Server returned ${res.status}`);
+        }
 
-      let html = "";
+        const records = await res.json();
 
-      records.forEach(record => {
-        html += `
-      <tr>
-        <td>${record.id}</td>
-        <td>${record.aa_aitisis ?? ''}</td>
-        <td>${record.imnia}</td>
-        <td class="wrap">${record.eponimia}</td>
-        <td class="wrap">${record.eidos_drast}</td>
-        <td>${record.odos}, Δ. ${record.perioxi}</td>
-        <td>${record.axiologisi_lvl1 ?? ''}</td>
-        <td>${record.axiologisi_lvl2 ?? ''}</td>
-        <td>${record.axiologisi_lvl3 ?? ''}</td>
-        <td>
-          <button class="button button-edit" onclick="editRecord(${record.id})">🖊️</button>
-          <button class="button button-excel" onclick="exportToExcel(${record.id})">📋</button>
-          <button class="button button-delete" onclick="deleteRecord(${record.id})">❌</button>
-        </td>
-      </tr>
-    `;
-      });
+        updateCounter(records.length);
 
-      tbody.innerHTML = html;
+        let html = "";
+
+        // 3. Security FIX: Escape all data before inserting into DOM
+        records.forEach(record => {
+          html += `
+            <tr>
+              <td>${escapeHtml(record.id)}</td>
+              <td>${escapeHtml(record.aa_aitisis) || ''}</td>
+              <td>${escapeHtml(record.imnia)}</td>
+              <td class="wrap">${escapeHtml(record.eponimia)}</td>
+              <td class="wrap">${escapeHtml(record.eidos_drast)}</td>
+              <td>${escapeHtml(record.odos)}, Δ. ${escapeHtml(record.perioxi)}</td>
+              <td>${escapeHtml(record.axiologisi_lvl1) || ''}</td>
+              <td>${escapeHtml(record.axiologisi_lvl2) || ''}</td>
+              <td>${escapeHtml(record.axiologisi_lvl3) || ''}</td>
+              <td>
+                <button class="button button-edit" 
+                        onclick="editRecord(${record.id})" 
+                        aria-label="Edit Record"
+                        title="Επεξεργασία">🖊️</button>
+                <button class="button button-excel" 
+                        onclick="exportToExcel(${record.id})" 
+                        aria-label="Export to Excel"
+                        title="Εξαγωγή σε Excel">📋</button>
+                <button class="button button-delete" 
+                        onclick="deleteRecord(${record.id})" 
+                        aria-label="Delete Record"
+                        title="Διαγραφή">❌</button>
+              </td>
+            </tr>`;
+        });
+
+        tbody.innerHTML = html;
+        
+      } catch (error) {
+        // 4. Error Handling FIX: Gracefully handle API failures
+        console.error("Load Records Error:", error);
+        const errorContainer = document.getElementById('error-container');
+        if(errorContainer) {
+          errorContainer.style.display = 'block';
+          errorContainer.textContent = `❌ Σφάλμα Φόρτωσης:\n${error.message || ''}`;
+        } else {
+            // Fallback UI for error
+            const tbody = document.querySelector('#recordsTable tbody');
+            if(tbody) tbody.innerHTML = `<tr><td colspan="10" style="text-align:center">❌ Σφάλμα API. Ελέγξτε τη σύνδεση.</td></tr>`;
+        }
+      } finally {
+          // Hide loader
+          if(loaderEl) loaderEl.style.display = 'none';
+      }
     }
 
     function editRecord(id) {
@@ -219,10 +296,18 @@
     }
 
     async function deleteRecord(id) {
-      if (confirm('Επιθυμέτε να διαγράψετε την εγγραφή?')) {
-        const res = await fetch(`/api/axiologiseis/${id}`, { method: 'DELETE' });
-        if (res.ok) loadRecords();
-        else alert('Failed to delete record');
+      if (confirm('Επιθυμείτε να διαγράψετε την εγγραφή?')) {
+        try {
+            const res = await fetch(`/api/axiologiseis/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                loadRecords(); // Reload table after delete
+            } else {
+                alert('Failed to delete record');
+            }
+        } catch (error) {
+            console.error("Delete failed:", error);
+            alert('Error deleting record: ' + error.message);
+        }
       }
     }
 
@@ -237,7 +322,10 @@
       }
     }
 
+    // 5. Filter Logic with Debouncing and Session Storage
     function applyFilters() {
+      if (!filterInputs.length) return;
+
       const rows = document.querySelectorAll('#recordsTable tbody tr');
       let visibleCount = 0;
 
@@ -245,13 +333,16 @@
         let show = true;
 
         filterInputs.forEach((input, colIndex) => {
-          const filter = input.value.trim().toLowerCase();
-          if (!filter) return; // άδειο φίλτρο -> αγνόησέ το
+          // Check bounds to prevent accessing invalid cell if column count changes
+          if(colIndex >= row.cells.length) return; 
+
+          const filterValue = input.value.trim().toLowerCase();
+          if (!filterValue) return; 
 
           const cell = row.cells[colIndex];
           const text = (cell?.textContent || '').toLowerCase();
 
-          if (!text.includes(filter)) {
+          if (!text.includes(filterValue)) {
             show = false;
           }
         });
@@ -263,29 +354,25 @@
       updateCounter(visibleCount);
     }
 
-    const filterInputs = document.querySelectorAll('.filters input');
-
+    // Setup Event Listeners for Filters
     filterInputs.forEach((input, index) => {
       input.addEventListener('keyup', () => {
-        sessionStorage.setItem(`filter_${index}`, input.value);
-        applyFilters();
+        // Save to session storage immediately so it survives refresh
+        const key = `filter_${index}`;
+        sessionStorage.setItem(key, input.value);
+
+        // Debounce the applyFilters call for performance
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(applyFilters, DEBOUNCE_DELAY);
       });
     });
 
-    function restoreFilters() {
-      filterInputs.forEach((input, index) => {
-        const saved = sessionStorage.getItem(`filter_${index}`);
-        if (saved !== null) {
-          input.value = saved;
-        }
-      });
-    }
-
-    // Load records on page load
-    restoreFilters();
-    loadRecords().then(() => {
-      applyFilters();
+    // Initialize Application
+    document.addEventListener('DOMContentLoaded', () => {
+        restoreFilters(); // Restore previous session filters
+        loadRecords();    // Load initial data
     });
+
   </script>
 
 </body>
