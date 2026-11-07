@@ -447,7 +447,7 @@
         return;
       }
 
-      window.location.href = `elegxos_new.html?axiologisi_id=${encodeURIComponent(recordId)}`;
+      window.location.replace(`elegxos_new.html?axiologisi_id=${encodeURIComponent(recordId)}`);
     }
 
     async function loadElegxoiForAxiologisiId(axiologisiId) {
@@ -540,7 +540,7 @@
       elegxoiTbody.querySelectorAll('button[data-edit-elegxos-id]').forEach(btn => {
         btn.addEventListener('click', () => {
           const elegxosId = btn.getAttribute('data-edit-elegxos-id');
-          window.location.href = `elegxos_edit.html?id=${encodeURIComponent(elegxosId)}`;
+          window.location.replace(`elegxos_edit.html?id=${encodeURIComponent(elegxosId)}`);
         });
       });
     }

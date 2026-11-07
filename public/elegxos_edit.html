@@ -210,7 +210,7 @@
 
         backBtn.addEventListener("click", () => {
             if (parentAxiologisiId) {
-                window.location.href = `edit.html?id=${encodeURIComponent(parentAxiologisiId)}`;
+                window.location.replace(`edit.html?id=${encodeURIComponent(parentAxiologisiId)}`);
             } else {
                 history.back(); 
             }
@@ -241,9 +241,9 @@
             if (resp.ok) {
                 alert('Ο έλεγχος ενημερώθηκε.');
                 if (parentAxiologisiId) {
-                    window.location.href = `edit.html?id=${encodeURIComponent(parentAxiologisiId)}`;
+                    window.location.replace(`edit.html?id=${encodeURIComponent(parentAxiologisiId)}`);
                 } else {
-                    window.location.href = 'list.html';
+                    window.location.replace('list.html');
                 }
             } else {
                 const err = await resp.json().catch(() => ({}));

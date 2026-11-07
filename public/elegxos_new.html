@@ -173,7 +173,7 @@
 
             if (resp.ok) {
                 alert('Ο έλεγχος αποθηκεύτηκε.');
-                window.location.href = `edit.html?id=${encodeURIComponent(axiologisiId)}`;
+                window.location.replace(`edit.html?id=${encodeURIComponent(axiologisiId)}`);
             } else {
                 const err = await resp.json().catch(() => ({}));
                 alert(err.error || 'Σφάλμα αποθήκευσης.');
